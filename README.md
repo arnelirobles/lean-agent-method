@@ -79,6 +79,10 @@ My first version of this escalated to the expensive model only when the automate
 
 That is why the critic runs on every change now, and why the mutation check exists. Run your own version of that test before you trust any of this.
 
+## Licence
+
+MIT. Take it, change it, ship it.
+
 ## What this does not fix
 
 A backlog with no definition of finished refills faster than it drains. Automation widens the drain. It does not close the tap. Decide what done means first.
