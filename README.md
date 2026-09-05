@@ -55,13 +55,23 @@ Three scripts do what I used to write into every agent brief. They live in the r
 
 They are in [BaryoDev/barakoCMS](https://github.com/BaryoDev/barakoCMS) under `scripts/`. Copy the shape, replace the checks with your own.
 
+One trap worth inheriting along with the shape: `needs-review.sh` takes no arguments and diffs the working tree, folding untracked files in as new. That is deliberate, because a rule that only reads committed changes misses the file an agent has written and not yet added. It also means running it in a checkout full of other work walks all of that too. Run it inside a clean copy of the branch. I lost a few minutes to this before writing it down.
+
 An instruction in a prompt is forgotten within a day. A script is not, and it costs no tokens to obey.
 
-## 5. Four changes in flight
+## 5. Send work back to the agent that did it
+
+A review finding, a failed build or a conflict goes back to the agent that wrote the change, not to a new one. It still holds the context. A fresh agent re-reads the codebase to reach the same conclusion, and pays for the reading.
+
+I measured this rather than assuming it. Resuming a drafter to make a two-line fix its reviewer had asked for cost about 4 thousand tokens. The same agent's first pass, which included reading the repository, had cost 154 thousand. The saving is not marginal.
+
+There is a second reason, which matters more than the money. The agent that wrote the change knows what it already checked. A new one does not, so it either re-checks everything or, more often, assumes the first agent got the basics right and looks only at what you pointed it at.
+
+## 6. Four changes in flight
 
 The merge queue takes one change at a time and re-tests each against everything before it. Ten in flight means every later one gets brought up to date, re-tested, and sometimes repaired. That rework costs more than the parallelism saved.
 
-## 6. Measure every batch
+## 7. Measure every batch
 
 `workflow-cost.py` reads the per-agent transcripts a Claude Code workflow leaves behind, sums tokens by model, prices them, and prints cost per change against a baseline.
 
@@ -73,7 +83,7 @@ Point it at a run directory or a bare run id. Prices are list prices in the `PRI
 
 After each batch, compare two things: cost per change, and what the critic caught versus what got past it. When the critic misses something, the fix is a new scripted check, not a more expensive critic. When a critic finds nothing on a tier for three batches, drop it from that tier.
 
-## 7. Attack your own method
+## 8. Attack your own method
 
 My first version of this escalated to the expensive model only when the automated checks failed. I tested that against the twelve real defects the expensive reviewers had caught that week, and every one of them was, by definition, something the checks had not noticed. The rule would have called in the strong model zero times for the things that mattered.
 
