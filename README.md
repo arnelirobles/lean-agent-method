@@ -47,11 +47,12 @@ The rules in the script are specific to my codebase. The categories transfer: au
 
 ## 4. Scripts, not instructions
 
-Three scripts do what I used to write into every agent brief. They live in the repository and are public:
+Four scripts do what I used to write into every agent brief. They live in the repository and are public:
 
 - `scripts/preflight.sh` builds, runs the named test classes, checks the changelog and module versions, restores in locked mode before building so a stale lock file cannot pass, fails when a test filter matches zero tests, scans added lines including untracked files for house style, and parses any changed workflow file with a duplicate-key-rejecting parser.
 - `scripts/sync-master.sh` merges the default branch, regenerates lock files when a project file changed, and reports conflicts.
 - `scripts/needs-review.sh` prints the rules above.
+- `scripts/strip-asset-provenance.py` removes embedded provenance metadata from images, and fails the build in `--check` mode if any is left. Section 9 is why.
 
 They are in [BaryoDev/barakoCMS](https://github.com/BaryoDev/barakoCMS) under `scripts/`. Copy the shape, replace the checks with your own.
 
@@ -88,6 +89,24 @@ After each batch, compare two things: cost per change, and what the critic caugh
 My first version of this escalated to the expensive model only when the automated checks failed. I tested that against the twelve real defects the expensive reviewers had caught that week, and every one of them was, by definition, something the checks had not noticed. The rule would have called in the strong model zero times for the things that mattered.
 
 That is why the critic runs on every change now, and why the mutation check exists. Run your own version of that test before you trust any of this.
+
+## 9. Your checks read text. Half of what an agent makes is not text.
+
+A change that swapped the icons on fourteen published packages went through the cascade above and came out clean. Every script passed. The reviewers then found that each exported image carried an embedded provenance manifest naming the tool that generated it, signed, about five and a half kilobytes of it, and that the build packed those images into every package. It was one merge away from being published under my name on a public registry.
+
+Nothing in the method could have caught it. The house style scan reads the text of a diff. An image is not text, so it was a blind spot by construction, not by oversight. Every check I had was pointed at the half of the output I could read.
+
+Three things came out of it that transfer to any project where agents produce files rather than only code.
+
+**Gate the bytes.** A script now walks each image and fails the build if it finds provenance metadata: in a PNG that is an optional named chunk, in an SVG a metadata element holding a signed blob, in a JPEG a segment near the front. Detection is cheap. `strings file.png | grep -i c2pa` is enough to tell you whether you have this problem right now, and most people who generate assets do.
+
+**Filter, do not re-encode.** The obvious fix is to run everything through an image tool with a strip flag. That works and it rewrites every pixel, which changes the file hash. If any of your evidence is a hash, and mine was, you have just invalidated it and you will not notice. Dropping the optional chunks and leaving the rest alone keeps the image data identical byte for byte. Verify it: parse the result, check the checksums, compare the compressed image stream before and after.
+
+**Scan the whole repository, not the diff.** I pointed the new check at every asset rather than only the changed ones. It immediately found a file that had carried a screenshot's camera metadata since the day it was committed, months earlier. A check scoped to the diff would never have seen it, and that is true of every check scoped to the diff.
+
+The general form: list what your agents produce that your checks cannot read. Images, generated documents, lock files, fixtures, anything binary. That list is your exposure, and it is invisible in exactly the way that matters, because everything looks green.
+
+One process note, since it nearly cost me the fix. The change was in the merge queue when I found this, and a queued branch cannot be pushed to. I had to pull it out of the queue first. Whatever your equivalent is, know how to do it before you need to, because the window is however long the queue takes.
 
 ## What this does not fix
 
